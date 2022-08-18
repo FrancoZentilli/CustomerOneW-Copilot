@@ -1,40 +1,52 @@
 import unittest
-
-import pandas as pd
-
 from utils import CatalogReader
 from pathlib import Path
 from configs import PATH_MAIN
 import os
 
 
-class TestUtils(unittest.TestCase):
+class TestCatalogReader(unittest.TestCase):
+
+    path_catalog = "realm/rb/conf/base/uc/churn/model/catalog.yaml"
+    path_repo = PATH_MAIN.parent / "customerone-w"
+    use_case = "rb"
+    catalog_reader = CatalogReader(path_catalog=path_catalog, path_repo=path_repo)
 
     def test_CatalogReader(self):
-        path_catalog = "realm/rb/conf/base/uc/churn/model/catalog.yaml"
-        path_repo = PATH_MAIN.parent / "customerone-w"
-        use_case = "rb"
-        catalog_reader = CatalogReader(path_catalog=path_catalog, path_repo=path_repo)
-        self.assertEqual(catalog_reader.path_catalog, path_repo / path_catalog)
-        self.assertEqual(catalog_reader.path_repo, Path(path_repo))
-        self.assertEqual(catalog_reader.get_use_case(path_catalog=Path(path_catalog)), use_case)
+        self.assertEqual(self.catalog_reader.path_catalog, self.path_repo / self.path_catalog)
+        self.assertEqual(self.catalog_reader.path_repo, Path(self.path_repo))
 
-        globals_paths = catalog_reader.get_globals_paths(path_repo=Path(path_repo), use_case=use_case)
+    def test_get_globals_paths(self):
+        globals_paths = self.catalog_reader.get_globals_paths(path_repo=Path(self.path_repo), use_case=self.use_case)
         for k in globals_paths:
-            # print(globals_paths[k])
             self.assertEqual(os.path.isdir(globals_paths[k]), True)
 
-        catalog_paths = catalog_reader.get_catalog_paths(path_catalog=catalog_reader.path_catalog,
-                                                         globals_paths=globals_paths)
+    def test_get_use_case(self):
+        self.assertEqual(self.catalog_reader.get_use_case(path_catalog=Path(self.path_catalog)), self.use_case)
+
+    def test_get_catalog_paths(self):
+        globals_paths = self.catalog_reader.get_globals_paths(path_repo=Path(self.path_repo), use_case=self.use_case)
+        catalog_paths = self.catalog_reader.get_catalog_paths(path_catalog=self.catalog_reader.path_catalog,
+                                                              globals_paths=globals_paths,
+                                                              file_type_dict=self.catalog_reader.file_type_dict)
         for k in catalog_paths:
-            # print(catalog_paths[k])
-            self.assertEqual(os.path.isdir(catalog_paths[k]) or os.path.isfile(catalog_paths[k]), True)
+            self.assertEqual(
+                os.path.isdir(catalog_paths[k]["file_path"]) or os.path.isfile(catalog_paths[k]["file_path"]), True)
 
-        self.assertEqual(catalog_reader.globals_paths, globals_paths)
-        self.assertEqual(catalog_reader.catalog_paths, catalog_paths)
+        self.assertEqual(self.catalog_reader.globals_paths, globals_paths)
+        self.assertEqual(self.catalog_reader.catalog_paths, catalog_paths)
 
-        table = catalog_reader.get_table("filtered_model_input_data")
-        self.assertEqual(table.shape, (4015,194))
+    def test_get_element(self):
+        table = self.catalog_reader.get_element("filtered_model_input_data")
+        self.assertEqual(table.shape, (4015, 194))
+        pickle = self.catalog_reader.get_element("outliers_transformer")
+        self.assertEqual(pickle.DEFAULT_LOAD_ARGS, {})
+
+    def test_get_elements_keys(self):
+        labels = ["table", ["table", "pickle"]]
+        for ls in labels:
+            elements_keys = self.catalog_reader.get_elements_keys(ls)
+            self.assertEqual(len(elements_keys) > 0, True)
 
 
 if __name__ == '__main__':
