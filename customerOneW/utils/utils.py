@@ -15,16 +15,21 @@ FILE_TYPE_DICT = {"pandas.ParquetDataSet": {"reader": pd.read_parquet,
 class CatalogReader:
 
     @staticmethod
-    def get_globals_paths(path_repo, global_dir="globals", globals_file="dev.yaml", base_path_name="base_path",
+    def get_globals_paths(path_repo, path_globals=None, global_suffix="globals.yaml", base_path_name="base_path",
                           use_case=None):
         globals_dict = {}
-        yaml_file = {}
         path_uc = path_repo / "realm/{}".format(use_case)
-        for (root, dirs, files) in os.walk(path_uc):
-            if root.endswith(global_dir):
-                path_globals = Path(root) / globals_file
-                with open(path_globals) as file:
-                    yaml_file = yaml.load(file, Loader=yaml.FullLoader)
+        if path_globals is None:
+            for (root, dirs, files) in os.walk(path_uc / "conf/base"):
+                for f in files:
+                    if global_suffix in f:
+                        path_globals = Path(root) / f
+                        break
+        else:
+            path_globals = path_repo / path_globals
+
+        with open(path_globals) as file:
+            yaml_file = yaml.load(file, Loader=yaml.FullLoader)
 
         base_path = yaml_file[base_path_name]
         var_suffix = "${.%s}" % base_path_name
@@ -74,8 +79,8 @@ class CatalogReader:
 
         return catalog_paths
 
-    def __init__(self, path_repo, path_catalog, global_dir="globals", globals_file="dev.yaml",
-                 base_path_name="base_path", file_type_dict=None):
+    def __init__(self, path_repo, path_catalog, path_globals=None,
+                 base_path_name="base_path", file_type_dict=None, global_suffix="globals.yaml"):
         """
         Manage the tables at catalog level
         :param path_repo: path to repository
@@ -89,9 +94,9 @@ class CatalogReader:
         self.path_repo = Path(path_repo)
         self.path_catalog = self.path_repo / path_catalog
         self.use_case = self.get_use_case(path_catalog=self.path_catalog)
-        self.globals_paths = self.get_globals_paths(path_repo=self.path_repo, global_dir=global_dir,
-                                                    globals_file=globals_file, base_path_name=base_path_name,
-                                                    use_case=self.use_case)
+        self.globals_paths = self.get_globals_paths(path_repo=self.path_repo,
+                                                    base_path_name=base_path_name, path_globals=path_globals,
+                                                    use_case=self.use_case, global_suffix=global_suffix)
         self.catalog_paths = self.get_catalog_paths(path_catalog=self.path_catalog, globals_paths=self.globals_paths,
                                                     file_type_dict=self.file_type_dict)
 
@@ -102,6 +107,7 @@ class CatalogReader:
 
         return elem
 
-    def get_elements_keys(self, labels_subset):
+    def get_elements_keys(self, labels_subset=None):
+        if labels_subset is None:
+            labels_subset = "table"
         return [k for k in self.catalog_paths.keys() if self.catalog_paths[k]["label"] in labels_subset]
-
