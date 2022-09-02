@@ -3,19 +3,28 @@ from pathlib import Path
 import os
 import yaml
 from kedro.extras.datasets.pickle import PickleDataSet
+import pickle
+
+
+def pickle_reader(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
+
 
 FILE_TYPE_DICT = {"pandas.ParquetDataSet": {"reader": pd.read_parquet,
                                             "label": "table"},
                   "spark.SparkDataSet": {"reader": pd.read_parquet,
                                          "label": "table"},
-                  "pickle.PickleDataSet": {"reader": PickleDataSet,
+                  "pickle.PickleDataSet": {"reader": pickle_reader,
                                            "label": "pickle"}}
 
 
 class CatalogReader:
 
     @staticmethod
-    def get_globals_paths(path_repo, path_globals=None, global_suffix="globals.yaml", base_path_name="base_path",
+    def get_globals_paths(path_repo, path_globals=None,
+                          global_suffix="globals.yaml",
+                          base_path_name="base_path",
                           use_case=None):
         globals_dict = {}
         path_uc = path_repo / "realm/{}".format(use_case)
@@ -61,10 +70,13 @@ class CatalogReader:
             file_path = yaml_file[elem]["filepath"]
             split_path = file_path.split("/")
             suffix = split_path[0]
-            # TODO: starts with suffix always?
             for g in globals_paths:
                 if g in suffix:
                     final_path = globals_paths[g] / file_path.replace(suffix, "")[1:]
+                    break
+
+            if not os.path.isfile(final_path):
+                continue
 
             file_type = yaml_file[elem]["type"]
             label = file_type_dict[file_type]["label"]
@@ -80,7 +92,8 @@ class CatalogReader:
         return catalog_paths
 
     def __init__(self, path_repo, path_catalog, path_globals=None,
-                 base_path_name="base_path", file_type_dict=None, global_suffix="globals.yaml"):
+                 base_path_name="base_path", file_type_dict=None,
+                 global_suffix="globals.yaml"):
         """
         Manage the tables at catalog level
         :param path_repo: path to repository
@@ -95,9 +108,12 @@ class CatalogReader:
         self.path_catalog = self.path_repo / path_catalog
         self.use_case = self.get_use_case(path_catalog=self.path_catalog)
         self.globals_paths = self.get_globals_paths(path_repo=self.path_repo,
-                                                    base_path_name=base_path_name, path_globals=path_globals,
-                                                    use_case=self.use_case, global_suffix=global_suffix)
-        self.catalog_paths = self.get_catalog_paths(path_catalog=self.path_catalog, globals_paths=self.globals_paths,
+                                                    base_path_name=base_path_name,
+                                                    path_globals=path_globals,
+                                                    use_case=self.use_case,
+                                                    global_suffix=global_suffix)
+        self.catalog_paths = self.get_catalog_paths(path_catalog=self.path_catalog,
+                                                    globals_paths=self.globals_paths,
                                                     file_type_dict=self.file_type_dict)
 
     def get_element(self, elem_name):
@@ -110,4 +126,5 @@ class CatalogReader:
     def get_elements_keys(self, labels_subset=None):
         if labels_subset is None:
             labels_subset = "table"
-        return [k for k in self.catalog_paths.keys() if self.catalog_paths[k]["label"] in labels_subset]
+        return [k for k in self.catalog_paths.keys() if
+                self.catalog_paths[k]["label"] in labels_subset]
