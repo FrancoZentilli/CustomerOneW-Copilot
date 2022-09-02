@@ -75,7 +75,7 @@ class CatalogReader:
                     final_path = globals_paths[g] / file_path.replace(suffix, "")[1:]
                     break
 
-            if not os.path.isfile(final_path):
+            if not (os.path.isfile(final_path) or os.path.isdir(final_path)):
                 continue
 
             file_type = yaml_file[elem]["type"]
