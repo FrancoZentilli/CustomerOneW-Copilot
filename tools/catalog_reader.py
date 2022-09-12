@@ -1,22 +1,7 @@
-import pandas as pd
 from pathlib import Path
 import os
 import yaml
-from kedro.extras.datasets.pickle import PickleDataSet
-import pickle
-
-
-def pickle_reader(path):
-    with open(path, 'rb') as f:
-        return pickle.load(f)
-
-
-FILE_TYPE_DICT = {"pandas.ParquetDataSet": {"reader": pd.read_parquet,
-                                            "label": "table"},
-                  "spark.SparkDataSet": {"reader": pd.read_parquet,
-                                         "label": "table"},
-                  "pickle.PickleDataSet": {"reader": pickle_reader,
-                                           "label": "pickle"}}
+from statics.catalog_reader import FILE_TYPE_DICT
 
 
 class CatalogReader:
